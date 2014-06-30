@@ -9,6 +9,7 @@ use PerlHub::WebInterface::Controller::User path    => 'user';
 use PerlHub::WebInterface::Controller::Package path => 'package';
 use PerlHub::WebInterface::Controller::API path     => 'api';
 use QBit::WebInterface::Controller::RBAC path       => 'rbac';
+use QBit::WebInterface::Controller::Multistate path => 'multistate';
 
 __PACKAGE__->use_config('PerlHub/WebInterface.cfg');
 

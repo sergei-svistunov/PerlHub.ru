@@ -70,19 +70,40 @@ __PACKAGE__->model_filter(
 );
 
 __PACKAGE__->multistates_graph(
-    empty_name => d_gettext('New'),
-    multistates =>
-      [[building => d_gettext('Building')], [completed => d_gettext('Completed')], [failed => d_gettext('Failed')]],
+    empty_name  => d_gettext('New'),
+    multistates => [
+        [building          => d_gettext('Building')],
+        [completed         => d_gettext('Completed')],
+        [failed            => d_gettext('Failed')],
+        [ready_to_building => d_gettext('Ready to building')],
+        [need_depends      => d_gettext('Need depends')],
+        [published         => d_gettext('Published')],
+    ],
     actions => {
-        start_building     => d_gettext('Start building'),
-        building_completed => d_gettext('Building completed'),
-        building_failed    => d_gettext('Building failed')
+        build_depends_ok     => d_gettext('Build depends is ready'),
+        build_depends_failed => d_gettext('Build depends is not ready'),
+        start_building       => d_gettext('Start building'),
+        building_completed   => d_gettext('Building completed'),
+        building_failed      => d_gettext('Building failed'),
+        publish              => d_gettext('Publish'),
     },
     multistate_actions => [
         {
+            action => 'build_depends_ok',
+            from => '__EMPTY__ or need_depends',
+            set_flags => ['ready_to_building'],
+            reset_flags => ['need_depends'],
+        },
+        {
+            action => 'build_depends_failed',
+            from => '__EMPTY__',
+            set_flags => ['need_depends'],
+        },
+        {
             action    => 'start_building',
-            from      => '__EMPTY__',
+            from      => 'ready_to_building',
             set_flags => ['building'],
+            reset_flags => ['ready_to_building'],
         },
         {
             action      => 'building_completed',
@@ -96,6 +117,12 @@ __PACKAGE__->multistates_graph(
             set_flags   => ['failed'],
             reset_flags => ['building'],
         },
+        {
+            action      => 'publish',
+            from        => 'completed',
+            set_flags   => ['published'],
+            reset_flags => ['completed'],
+        },
     ]
 );
 
@@ -108,7 +135,7 @@ sub pre_process_fields {
                 fields => [qw(id name)],
                 filter => {id => array_uniq(map {$_->{'series_id'}} @$result)}
             )
-          }
+        }
       }
       if $fields->need('series_name');
 
@@ -118,7 +145,7 @@ sub pre_process_fields {
                 fields => [qw(id name)],
                 filter => {id => array_uniq(map {$_->{'arch_id'}} @$result)}
             )
-          }
+        }
       }
       if $fields->need('arch_name');
 
@@ -133,7 +160,7 @@ sub pre_process_fields {
                     ],
                     filter => {id => array_uniq(map {$_->{'source_id'}} @$result)}
                 )
-              }
+            }
         };
     }
 }
