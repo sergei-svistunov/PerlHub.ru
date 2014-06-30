@@ -1,0 +1,3 @@
+<div class="alert alert-error">
+  <h4>[% error | html %]</h4>
+</div>

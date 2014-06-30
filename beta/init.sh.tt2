@@ -1,0 +1,89 @@
+#!/bin/bash
+
+NAME=beta.advq
+DIR=[% dir %]/nginx
+
+PATH=/bin:/usr/bin:/sbin:/usr/sbin
+
+PERL5LIB=$DIR/../lib
+
+NGINX_DAEMON=/usr/sbin/nginx
+NGINX_PIDFILE=$DIR/nginx.pid
+NGINX_CONF=$DIR/nginx.conf
+
+FCGI_DAEMON=/usr/bin/qbit_fcgi_starter
+FCGI_ARGS="--listen=$DIR/fcgi.sock"
+FCGI_PIDFILE=$DIR/fcgi.pid
+
+trap "" 1
+export PATH
+export PERL5LIB
+
+case "$1" in
+  start)
+    $0 fcgi_start
+    $0 nginx_start
+    exit $?
+    ;;
+
+  stop)
+    $0 nginx_stop
+    $0 fcgi_stop
+    exit $?
+    ;;
+
+  restart)
+    $0 stop
+    $0 start
+    exit $?
+    ;;
+
+
+  nginx_start)
+    echo "Starting nginx"
+    echo >$DIR/access.log
+    echo >$DIR/error.log
+    start-stop-daemon --start --pidfile $NGINX_PIDFILE --exec $NGINX_DAEMON -- -c $NGINX_CONF
+    ;;
+
+  nginx_stop)
+    echo "Stopping nginx"
+    start-stop-daemon --stop --pidfile $NGINX_PIDFILE --oknodo --exec $NGINX_DAEMON --retry 1
+    ;;
+
+  nginx_restart)
+    $0 nginx_stop
+    $0 nginx_start
+    exit $?
+    ;;
+
+
+  fcgi_start)
+    echo "Starting FastCGI"
+    start-stop-daemon --start --pidfile $FCGI_PIDFILE --exec $FCGI_DAEMON -- $FCGI_ARGS --daemonize --pid=$FCGI_PIDFILE PerlHub::WebInterface
+    ;;
+
+  fcgi_stop)
+    echo "Stopping FastCGI"
+    start-stop-daemon --stop --pidfile $FCGI_PIDFILE --oknodo --retry 65
+    ;;
+
+  fcgi_restart)
+    $0 fcgi_stop
+    $0 fcgi_start
+    exit $?
+    ;;
+
+  *)
+    echo "Usage: /etc/init.d/$NAME {start|stop|restart|nginx_start|nginx_stop|nginx_restart|fcgi_start|fcgi_stop|fcgi_restart}"
+    exit 1
+    ;;
+esac
+
+if [ $? == 0 ]; then
+  echo OK
+  exit 0
+else
+  echo Failed
+  exit 1
+fi

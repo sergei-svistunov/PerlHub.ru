@@ -1,0 +1,15 @@
+body {
+    min-width: 1000px;
+}
+
+#content-container {
+    padding: 60px 0 0 0;
+}
+
+.hero-unit .thumbnail {
+    min-height: 300px;
+}
+
+.hero-unit .thumbnails {
+    padding-top: 20px;
+}

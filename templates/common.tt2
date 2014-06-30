@@ -1,0 +1,143 @@
+[% MACRO pager_link(text, page, opts) BLOCK %]
+  [%
+    classes = [];
+    classes.push('disabled') IF opts.disabled;
+    classes.push('active') IF opts.active;
+  %]
+  <li [% IF classes.size +%] class="[% classes.join(' ') %]"[% END %]>
+    [% IF opts.disabled || opts.active %]
+    <span>[% text %]</span>
+    [% ELSE %]
+    <a href="[% cmd_link('', '', page => page) %]">[% text %]</a>
+    [% END %]
+  </li>
+[% END %]
+
+[% MACRO pager BLOCK %]
+[%
+   SET cur = vopts.page;
+   SET total = vopts.total_pages;
+
+   start = cur - 4;
+   SET start = 1 IF start < 1;
+   SET start = 1 IF total < 10;
+
+   finish = cur + 4;
+   SET finish = 9 IF 9 > finish;
+   SET finish = total IF finish > total;
+
+   SET start = 2 IF start == 3;
+   SET finish = total - 1 IF total - finish == 2;
+%]
+<div class="pagination pagination-centered">
+  <ul>
+    [%
+      pager_link('&laquo;', cur - 1, {disabled => cur - 1 < 1});
+      pager_link(1, 1) IF start > 1;
+      pager_link('&#8230;', '', {disabled => 1}) IF start > 3;
+
+      i = start;
+      WHILE i <= finish;
+        pager_link(i, i, {active => cur == i});
+        i = i + 1;
+      END;
+
+      pager_link('&#8230;', '', {disabled => 1}) IF finish < total - 2;
+      pager_link(total, total) IF finish < total;
+      pager_link('&raquo;', cur + 1, {disabled => cur + 1 > total});
+    %]
+
+  </ul>
+</div>
+[% END %]
+
+[%####################################################################################################################%]
+
+[% MACRO LSTATIC(file) BLOCK %]
+    [% USE File(get_option('ApplicationPath') _ 'data' _ file) %]
+    [% USE Math %]
+    [% file _ '?b=' _ Math.int(File.mtime / 7)  %]
+[% END %]
+
+[%####################################################################################################################%]
+
+[% BLOCK page %]
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      [% gettext('PerlHub') %]
+      [% IF page_header.defined +%] - [%+ page_header | html %][% END %]
+    </title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link href="//yandex.st/bootstrap/2.3.2/css/bootstrap.min.css" rel="stylesheet" media="screen">
+    <link href="/css/common.css" rel="stylesheet">
+  </head>
+
+  <body>
+    <div class="navbar navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container-fluid">
+          <a class="brand" href="/">[% gettext('PerlHub') %]</a>
+          <ul class="nav">
+            [% FOR item = get_option('menu') %]
+            [% IF item.submenu.size %]
+            <li class="dropdown [% IF item.path == get_option('cur_cmdpath') +%] active[% END %]">
+              <a href="#" class="dropdown-toggle" data-toggle="dropdown">
+                [% item.label | html %]
+                <b class="caret"></b>
+              </a>
+               <ul class="dropdown-menu">
+                 [% FOR subitem = item.submenu %]
+                  <li>
+                    <a href="[% cmd_link(subitem.cmd, item.path) %]">[% subitem.label | html %]</a>
+                  </li>
+                 [% END %]
+               </ul>
+            </li>
+            [% ELSE %]
+            <li [%+ IF item.path == get_option('cur_cmdpath') %] class="active"[% END %]>
+              <a href="[% cmd_link('', item.path) %]">[% item.label | html %]</a>
+            </li>
+            [% END %]
+            [% END %]
+          </ul>
+
+          [% IF get_option('cur_user') %]
+          <p class="navbar-text pull-right">
+              <a href="[% cmd_link('profile', 'user') %]">[% get_option('cur_user').login %]</a>
+              <a href="[% cmd_link('logout', 'user') %]"><img src="/i/glyphicons_388_exit.png"></a>
+          </p>
+          [% ELSE %]
+          <div class="btn-group pull-right">
+            <a href="[% cmd_link('register', 'user') %]" class="btn btn-primary">[% gettext('Sign up') %]</a>
+            <a href="[% cmd_link('login', 'user') %]" class="btn btn-default">[% gettext('Sign in') %]</a>
+          </div>
+          [% END %]
+        </div>
+      </div>
+    </div>
+
+    <div id="content-container" class="container-fluid">
+      <div class="row-fluid">
+        <div class="span1"></div>
+        <div class="span10">
+          [% IF page_header.defined %]
+          <div class="page-header">
+            <h1>[% page_header | html %]</h1>
+          </div>
+          [% END %]
+
+          [% content %]
+
+          [% IF vopts.total_pages.defined; pager; END %]
+        </div>
+      </div>
+    </div>
+
+    <script src="//yandex.st/jquery/1.10.2/jquery.min.js"></script>
+    <script src="//yandex.st/bootstrap/2.3.2/js/bootstrap.min.js"></script>
+    <script src="[% LSTATIC('/js/main.js') %]"></script>
+  </body>
+</html>
+[% END %]

@@ -1,0 +1,52 @@
+[% WRAPPER page %]
+[% IF gpg_keys.size %]
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>[% gettext('ID') %]</th>
+      <th>[% gettext('Sign') %]</th>
+    </tr>
+  </thead>
+  <tbody>
+    [% FOR key = gpg_keys %]
+    <tr>
+      <td>[% key.id | html %]</td>
+      <td>[% key.sign | html %]</td>
+    </tr>
+    [% END %]
+  </tbody>
+</table>
+
+[% ELSE %]
+<div class="alert alert-error">
+[% gettext('You have not any GPG keys.') %]
+</div>
+[% END %]
+
+<a href="#UploadKeyModal" role="button" class="btn" data-toggle="modal">[% gettext('Upload GPG key') %]</a>
+<div id="UploadKeyModal" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="UploadKeyModalLabel" aria-hidden="true">
+  <div class="modal-header">
+    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+    <h3 id="UploadKeyModalLabel">[% gettext('GPG key uploading') %]</h3>
+  </div>
+  <div class="modal-body">
+    <p class="text-info">
+        [% gettext('To get public key run in console:') %]
+        <pre>gpg --armor --export KEYID</pre>
+
+        [% gettext('To list all public keys run in console:') %]
+        <pre>gpg --list-public-keys</pre>
+    </p>
+    <form method="POST" action="[% cmd_link('upload_gpg_key') %]">
+      <fieldset>
+        <input type="hidden" name="sign" value="[% sign_token('upload_gpg_key') %]">
+        <textarea rows="10" name="key" class="span12"></textarea>
+      </fieldset>
+    </form>
+  </div>
+  <div class="modal-footer">
+    <button class="btn" data-dismiss="modal" aria-hidden="true">[% gettext('Close') %]</button>
+    <button class="btn btn-primary" onclick="$('form').submit()">[% gettext('Upload') %]</button>
+  </div>
+</div>
+[% END %]

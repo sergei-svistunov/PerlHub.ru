@@ -1,0 +1,31 @@
+#!/bin/sh
+
+set -e
+
+case "$1" in
+    configure)
+        rm -f /etc/nginx/sites-enabled/default
+        ln -f /etc/nginx/sites-available/perlhub /etc/nginx/sites-enabled/perlhub
+
+        chown -R www-data:www-data /usr/share/perlhub
+        chown www-data:www-data /opt/perlhub
+        chown www-data:www-data /opt/perlhub/dput_upload
+        chown www-data:www-data /opt/perlhub/dput_tmp
+        chown www-data:www-data /opt/perlhub/packages
+        chown www-data:www-data /opt/perlhub/sources
+        chown www-data:www-data /opt/perlhub/bin_incoming
+        chown www-data:www-data /opt/perlhub/gpg
+    ;;
+
+    abort-upgrade|abort-remove|abort-deconfigure)
+    ;;
+
+    *)
+        echo "postinst called with unknown argument \`$1'" >&2
+        exit 1
+    ;;
+esac
+
+#DEBHELPER#
+
+exit 0

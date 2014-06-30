@@ -1,0 +1,7 @@
+.project
+/.includepath
+/.beta_saved
+/nginx
+debian/perlhub.cron.d
+lib/PerlHub/Application.cfg
+lib/PerlHub/WebInterface.cfg

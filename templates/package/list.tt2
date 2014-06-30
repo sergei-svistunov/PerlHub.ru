@@ -1,0 +1,92 @@
+[% WRAPPER page %]
+
+<div class="well">
+  <form class="form-search" style="margin: 0;">
+    <div class="input-append" style="width: 100%; text-align: center;">
+      <input type="text" class="search-query span11" name="filter_pkg_name" placeholder="Package name" value="[% request.param('filter_pkg_name') | html %]">
+      <button type="submit" class="btn">[% gettext('Filter') %]</button>
+    </div>
+  </form>
+</div>
+
+[% IF packages.size %]
+<table class="table table-hover">
+  <thead>
+    <tr>
+      <th>[% gettext('ID') %]</th>
+      <th>[% gettext('Name') %]</th>
+      <th>[% gettext('Version') %]</th>
+      <th>[% gettext('Upload date') %]</th>
+      <th>[% gettext('Building status') %]</th>
+    </tr>
+  </thead>
+  <tbody>
+    [% FOR package = packages %]
+    <tr>
+      <td>[% package.id | html %]</td>
+      <td>[% package.name | html %]</td>
+      <td>[% package.version | html %]</td>
+      <td>[% format_date(package.upload_dt, '%c', iformat => 'db_time') | html %]</td>
+      <td>
+        [%
+            archs = {};
+            series = {};
+            arch_series = {};
+            FOR build = package.builds;
+                archs.${build.arch_name} = build.arch_id;
+                series.${build.series_name} = build.series_id;
+                arch_series.${build.arch_name}.${build.series_name} = build;
+            END;
+        %]
+        <table class="table table-condensed table-bordered">
+          <thead>
+            <tr>
+              <th></th>
+              [% FOR s = series.keys.sort %]
+              <th>[% s | html %]</th>
+              [% END %]
+            </tr>
+          </thead>
+          <tbody>
+            [% FOR a = archs.keys.sort %]
+            <tr>
+              <th>[% a | html %]</th>
+              [% FOR s = series.keys.sort %]
+              <td>
+                [% mst = arch_series.${a}.${s}.multistate %]
+                [% IF mst && check_rights('view_build_log') %]
+                [% modal_id = package.id _ '_' _ s _ '_' _ a %]
+                <a data-toggle="modal" data-target="#modal_[% modal_id | html %]" href="[% cmd_link('build_log', '', id => package.id, arch_id => archs.${a}, series_id => series.${s}) %]">
+                [% END %]
+                  <span class="badge [% IF mst == 1 +%] badge-info[% ELSIF mst == 2 +%] badge-success[% ELSIF mst == 4 +%] badge-important[% END %]">
+                    [% arch_series.${a}.${s}.multistate_name | html %]
+                  </span>
+                [% IF mst && check_rights('view_build_log')%]
+                </a>
+                <div id="modal_[% modal_id | html %]" class="modal hide fade" tabindex="-1" role="dialog" aria-labelledby="modal_label_[% modal_id | html %]" aria-hidden="true" style="width: 900px; margin-left: -450px;">
+                  <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">×</button>
+                    <h3 id="modal_label_[% modal_id | html %]">[% gettext('Build log') %]</h3>
+                  </div>
+                  <div class="modal-body"></div>
+                  <div class="modal-footer">
+                    <button class="btn" data-dismiss="modal" aria-hidden="true">[% gettext('Close') %]</button>
+                  </div>
+                </div>
+                [% END %]
+              </td>
+              [% END %]
+            </tr>
+            [% END %]
+          </tbody>
+        </table>
+      </td>
+    </tr>
+    [% END %]
+  </tbody>
+</table>
+[%# dumper(packages) %]
+[% ELSE %]
+<div class="alert alert-error">[% gettext('Nothing found') %]</div>
+[% END %]
+[% END %]

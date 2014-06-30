@@ -1,0 +1,4 @@
+reCAPTCHA_privkey   => '6LdYFrwSAAAAAJNYwy31ZzXCXNqp2Fokz2-YwQvC',
+reCAPTCHA_pubkey    => '6LdYFrwSAAAAAJoadSVM2o1Zhyi9lCw2_Bf0tMd4',
+
+show_timelog => 1,

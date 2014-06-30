@@ -1,0 +1,65 @@
+server {
+    server_name perlhub.ru;
+
+    root        /usr/share/perlhub/data;
+
+    location = /favicon.ico {
+        access_log off;
+    }
+
+    location /robots.txt {
+        access_log off;
+    }
+
+    location /css/ {
+        access_log off;
+    }
+
+    location /i/ {
+        access_log off;
+    }
+
+    location /js/ {
+        access_log off;
+    }
+
+    location /qbit/ {
+        access_log off;
+        alias /usr/share/perl5/QBit/data/;
+    }
+
+    location /dput_upload/ {
+        root                    /opt/perlhub;
+        client_body_temp_path   /opt/perlhub/dput_tmp;
+        dav_methods             PUT;
+        limit_except PUT {
+            deny  all;
+        }
+    }
+
+    location /_source/ {
+        alias /opt/perlhub/sources/;
+    }
+
+    location / {
+        include                       /etc/nginx/fastcgi_params;
+        fastcgi_param SCHEME          $scheme;
+        fastcgi_pass                  unix:/var/run/perlhub/fcgi.sock;
+        fastcgi_intercept_errors      on;
+        fastcgi_next_upstream         off;
+        fastcgi_read_timeout          30s;
+        fastcgi_buffers               1024 4k;
+        fastcgi_keep_conn             on;
+        client_max_body_size          50m;
+    }
+}
+
+server {
+    server_name packages.perlhub.ru;
+
+    root        /opt/perlhub/packages/;
+
+    location =/ {
+        return 'http://perlhub.ru';
+    }
+}

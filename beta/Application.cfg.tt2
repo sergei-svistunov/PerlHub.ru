@@ -1,0 +1,29 @@
+preload_accessors => 1,
+
+salt => '6MMUqw3jRGOT+t2lHbxk7aRTnnBGPvq8qJfkmOKlsnk6A0sU2+5Mvaco',
+
+locales => {
+    en => {name => 'English', code => 'en_GB', default => 1},
+    ru => {name => 'Русский', code => 'ru_RU'},
+},
+
+db => {
+    host     => 'localhost',
+    user     => 'localperlhub',
+    password => '123',
+    database => 'perlhub'
+},
+
+sendmail => {
+    message_id => 'perlhub',
+    via        => 'testfile',
+    testfile   => '[% dir %]/nginx/last_email.eml',
+},
+
+gpg_dir                 => '[% dir %]/nginx/perlhub/gpg',
+sign_gpg_dir            => '[% dir %]/nginx/perlhub/sign_gpg',
+packages_dir            => '[% dir %]/nginx/perlhub/packages',
+source_store_dir        => '[% dir %]/nginx/perlhub/sources',
+binaries_incomming_path => '[% dir %]/nginx/perlhub/bin_incoming',
+packages_path           => '[% dir %]/nginx/perlhub/packages',
+sources_uri             => 'http://127.0.0.1:8000/_source',

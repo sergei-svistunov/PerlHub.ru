@@ -1,0 +1,93 @@
+[% WRAPPER page %]
+<div class="hero-unit">
+  <h1>[% gettext('Perl modules in debian packages') %] </h1>
+  <div class="row-fluid">
+    <ul class="thumbnails">
+      <li class="span6 thumbnail">
+        <h3>[% gettext('To add PerlHub repository to your Ubuntu do:') %]</h3>
+        <form class="form add_to_apt_instr_form" action="#">
+          <fieldset>
+            <ol>
+              <li>
+                <label>[% gettext('Choose series:') %]</label>
+                <select class="series_select span12">
+                  <option selected="selected"></option>
+                  [% FOR s = series %]
+                  <option value="[% s.name | html %]">[% s.description | html %]</option>
+                  [% END %]
+                </select>
+              </li>
+              <li>
+                <label>[% gettext('Choose architecture:') %]</label>
+                <select class="arch_select span12">
+                  <option selected="selected"></option>
+                  [% FOR a = arches %]
+                  <option value="[% a.name | html %]">[% a.name | html %]</option>
+                  [% END %]
+                </select>
+              </li>
+              <li>
+                <button class="btn btn-primary btn-large" type="submit" disabled="disabled">[% gettext('Get instructions') %]</button>
+              </li>
+            </ol>
+          </fieldset>
+        </form>
+
+        <div id="add_to_apt_instr_modal" class="modal hide fade" style="width: 700px; margin-left: -350px;">
+          <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+            <h3>[% gettext('Adding PerlHub repository to your Ubuntu') %]</h3>
+          </div>
+          <div class="modal-body">
+            <p>[% gettext('Register PerlHub GPG key:') %]</p>
+            <pre>sudo apt-key adv --keyserver keys.gnupg.net --recv-keys [% gpg_sign_pub_key %]</pre>
+
+            <p>[% gettext('Add this to /etc/apt/sources:') %]</p>
+            <pre>deb http://packages.perlhub.ru <span class="pkg_series"></span>/all/
+deb http://packages.perlhub.ru <span class="pkg_series"></span>/<span class="pkg_arch"></span>/
+deb-src http://packages.perlhub.ru <span class="pkg_series"></span>/source/</pre>
+          </div>
+          <div class="modal-footer">
+            <button class="btn" data-dismiss="modal" aria-hidden="true">[% gettext('Close') %]</button>
+          </div>
+        </div>
+      </li>
+
+      <li class="span6 thumbnail">
+        <h3>[% gettext('Total source packages') %]:&nbsp;[% total_sources | html %]</h3>
+        <h3>[% gettext('Builded packages') %]:</h3>
+        <ul>
+        [% FOR s = series %]
+          <li>[% s.description | html %]:&nbsp;<strong>[% builded_cnt.${s.id} | html %]</strong></li>
+        [% END %]
+        </ul>
+      </li>
+
+    </ul>
+  </div>
+</div>
+
+<div class="row-fluid">
+  <div class="span6">
+    <h2>[% gettext('Last uploaded source packages') %]</h2>
+    [% FOR package = last_uploaded_source_pkgs %]
+    <p>
+      <span class="label">[% format_date(package.upload_dt, gettext('%m.%d.%Y'), iformat => 'db_time') | html %]</span>
+      <strong>[% package.name | html %]</strong>
+      ([% package.version | html %])
+    </p>
+    [% END %]
+  </div>
+
+  <div class="span6">
+    <h2>[% gettext('Last builded packages') %]</h2>
+    [% FOR package = last_builded_pkgs %]
+    <p>
+      <strong>[% package.package_name | html %]</strong>
+      ([% package.package_version | html %])
+      <span class="label">[% package.series_name | html %]&nbsp;/&nbsp;[% package.arch_name | html %]</span>
+    </p>
+    [% END %]
+  </div>
+</div>
+[% END %]

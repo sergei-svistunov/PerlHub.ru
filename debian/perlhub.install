@@ -1,0 +1,5 @@
+data        /usr/share/perlhub/
+lib         /usr/share/perlhub/
+templates   /usr/share/perlhub/
+
+etc/nginx/sites-available/perlhub

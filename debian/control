@@ -1,0 +1,19 @@
+Source: perlhub
+Section: perl
+Priority: extra
+Maintainer: Sergei Svistunov <sergei-svistunov@yandex.ru>
+Build-Depends: debhelper (>= 8.0.0)
+Standards-Version: 3.9.4
+
+Package: perlhub
+Architecture: all
+Depends: ${shlibs:Depends}, ${misc:Depends}, ${perl:Depends}, nginx, nginx-full,
+ apt-utils, gnupg, libdpkg-perl, libipc-run-perl,
+ libqbit-perl, libqbit-application-perl, libqbit-application-model-dbmanager-perl,
+ libqbit-application-model-rbac-db-perl, libqbit-application-model-db-mysql-rbac-perl,
+ libqbit-application-model-db-mysql-perl, libqbit-application-model-multistate-db-perl,
+ libqbit-application-model-sendmail-perl,
+ libqbit-webinterface-fastcgi-perl, libqbit-webinterface-controller-rbac-perl,
+ libqbit-cron-perl
+Description: perlhub server
+ HTTP server
