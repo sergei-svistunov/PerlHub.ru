@@ -1,4 +1,7 @@
 server {
+    listen        80 default;
+    listen        [::]:80 default ipv6only=on;
+
     server_name perlhub.ru;
 
     root        /usr/share/perlhub/data;
@@ -55,6 +58,9 @@ server {
 }
 
 server {
+    listen        80;
+    listen        [::]:80;
+
     server_name packages.perlhub.ru;
 
     root        /opt/perlhub/packages/;
