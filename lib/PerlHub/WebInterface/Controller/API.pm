@@ -6,6 +6,7 @@ use base qw(QBit::WebInterface::Controller);
 
 __PACKAGE__->model_accessors(
     package_build => 'PerlHub::Application::Model::PackageBuild',
+    dist_package  => 'PerlHub::Application::Model::DistPackage',
     db            => 'PerlHub::Application::Model::DB',             # ToDo: kill it
 );
 
@@ -19,9 +20,8 @@ sub get_builder_settings : CMD {
             othermirrors => [
                 'deb http://packages.perlhub.ru {{SERIES}}/all/',
                 'deb http://packages.perlhub.ru {{SERIES}}/{{ARCH}}/',
-                #'deb http://ppa.launchpad.net/qbit-perl/{{SERIES}}/ubuntu {{SERIES}} main',
             ],
-            components => [qw(main universe multiverse)],
+            components => [$self->dist_package->get_components()],
         }
     );
 }

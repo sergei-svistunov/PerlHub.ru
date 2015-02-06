@@ -20,6 +20,7 @@ __PACKAGE__->meta(
                 {name => 'id',          type => 'TINYINT', unsigned => TRUE, not_null => TRUE, autoincrement => TRUE},
                 {name => 'name',        type => 'VARCHAR', length   => 20,   not_null => TRUE},
                 {name => 'description', type => 'VARCHAR', length   => 255,  not_null => TRUE},
+                {name => 'outdated',    type => 'BOOLEAN', not_null => TRUE, default  => 0},
             ],
             primary_key => ['id'],
         },
@@ -53,7 +54,30 @@ __PACKAGE__->meta(
                 [['series_id'] => package_series => ['id']]
             ],
             indexes => [{fields => ['multistate']}]
-        }
+        },
+
+        package_build_wait_depends => {
+            fields => [
+                {name => 'name', type => 'VARCHAR', length => 255, not_null => TRUE},
+                {name => 'source_id'},
+                {name => 'series_id'},
+                {name => 'arch_id'},
+            ],
+            primary_key  => [qw(name source_id series_id arch_id)],
+            foreign_keys => [[[qw(source_id series_id arch_id)] => package_build => [qw(source_id series_id arch_id)]]],
+        },
+
+        dist_package => {
+            fields => [
+                {name => 'series_id'},
+                {name => 'arch_id'},
+                {name => 'name', type => 'VARCHAR', length => 255, not_null => TRUE},
+                {name => 'version', type => 'VARCHAR', length => 64, not_null => TRUE},
+            ],
+            primary_key  => [qw(series_id arch_id name version)],
+            foreign_keys => [[['arch_id'] => package_arch => ['id']], [['series_id'] => package_series => ['id']]],
+          }
+
     }
 );
 

@@ -19,11 +19,12 @@ __PACKAGE__->model_accessors(
 );
 
 __PACKAGE__->model_fields(
-    id        => {pk => TRUE, db => TRUE},
-    name      => {db => TRUE},
-    version   => {db => TRUE},
-    upload_dt => {db => TRUE},
-    files     => {
+    id            => {pk => TRUE, db => TRUE},
+    name          => {db => TRUE},
+    version       => {db => TRUE},
+    upload_dt     => {db => TRUE},
+    build_depends => {db => TRUE},
+    files         => {
         depends_on => 'id',
         get        => sub {
             $_[0]->{'files'}->{$_[1]->{'id'}};
@@ -34,7 +35,7 @@ __PACKAGE__->model_fields(
         get        => sub {
             $_[0]->{'builds'}->{$_[1]->{'id'}};
           }
-      }
+    }
 );
 
 __PACKAGE__->model_filter(
@@ -144,7 +145,8 @@ sub add {
         my $dsc = Dpkg::Control->new(type => CTRL_PKG_SRC);
         $dsc->load("$source_dir/$files{'dsc'}");
 
-        my @series_ids = map {$_->{'id'}} @{$self->db->package_series->get_all(fields => ['id'])};
+        my @series_ids =
+          map {$_->{'id'}} @{$self->db->package_series->get_all(fields => ['id'], filter => {outdated => 0})};
         my %archs = map {$_->{'name'} => $_->{'id'}} @{$self->db->package_arch->get_all(fields => [qw(id name)])};
 
         $self->db->transaction(
@@ -156,7 +158,7 @@ sub add {
                             version       => $changes->{'Version'},
                             upload_dt     => curdate(oformat => 'db_time'),
                             user_id       => $owner,
-                            build_depends => $dsc->{'Build-Depends'},
+                            build_depends => join(', ', map {$dsc->{$_}} grep {/^Build-Depends/i} keys(%$dsc)),
                         }
                     );
                 }

@@ -5,10 +5,13 @@ use qbit;
 use base qw(QBit::Application::Model::DBManager QBit::Application::Model::Multistate::DB);
 
 use File::Path qw(make_path);
+use Dpkg::Deps;
 
 __PACKAGE__->model_accessors(
-    db             => 'PerlHub::Application::Model::DB',
-    package_source => 'PerlHub::Application::Model::PackageSource'
+    db                         => 'PerlHub::Application::Model::DB',
+    package_source             => 'PerlHub::Application::Model::PackageSource',
+    dist_package               => 'PerlHub::Application::Model::DistPackage',
+    package_build_wait_depends => 'PerlHub::Application::Model::PackageBuildWaitDepends',
 );
 
 __PACKAGE__->register_rights(
@@ -56,6 +59,12 @@ __PACKAGE__->model_fields(
         get        => sub {
             $_[0]->{'sources'}->{$_[1]->{'source_id'}}{'version'};
         },
+    },
+    build_depends => {
+        depends_on => 'source_id',
+        get        => sub {
+            $_[0]->{'sources'}->{$_[1]->{'source_id'}}{'build_depends'};
+        },
     }
 );
 
@@ -72,38 +81,36 @@ __PACKAGE__->model_filter(
 __PACKAGE__->multistates_graph(
     empty_name  => d_gettext('New'),
     multistates => [
-        [building          => d_gettext('Building')],
-        [completed         => d_gettext('Completed')],
-        [failed            => d_gettext('Failed')],
-        [ready_to_building => d_gettext('Ready to building')],
-        [need_depends      => d_gettext('Need depends')],
-        [published         => d_gettext('Published')],
+        [building     => d_gettext('Building')],
+        [completed    => d_gettext('Completed')],
+        [failed       => d_gettext('Failed')],
+        [need_depends => d_gettext('Need depends')],
+        [published    => d_gettext('Published')],
     ],
     actions => {
-        build_depends_ok     => d_gettext('Build depends is ready'),
-        build_depends_failed => d_gettext('Build depends is not ready'),
         start_building       => d_gettext('Start building'),
         building_completed   => d_gettext('Building completed'),
         building_failed      => d_gettext('Building failed'),
         publish              => d_gettext('Publish'),
+        build_depends_failed => d_gettext('Build depends is not ready'),
+        depends_changed      => d_gettext('Depends changed'),
     },
     multistate_actions => [
         {
-            action => 'build_depends_ok',
-            from => '__EMPTY__ or need_depends',
-            set_flags => ['ready_to_building'],
-            reset_flags => ['need_depends'],
-        },
-        {
-            action => 'build_depends_failed',
-            from => '__EMPTY__',
-            set_flags => ['need_depends'],
-        },
-        {
             action    => 'start_building',
-            from      => 'ready_to_building',
+            from      => '__EMPTY__',
             set_flags => ['building'],
-            reset_flags => ['ready_to_building'],
+        },
+        {
+            action      => 'build_depends_failed',
+            from        => 'building',
+            set_flags   => ['need_depends'],
+            reset_flags => ['building'],
+        },
+        {
+            action      => 'depends_changed',
+            from        => 'need_depends',
+            reset_flags => ['need_depends'],
         },
         {
             action      => 'building_completed',
@@ -135,7 +142,7 @@ sub pre_process_fields {
                 fields => [qw(id name)],
                 filter => {id => array_uniq(map {$_->{'series_id'}} @$result)}
             )
-        }
+          }
       }
       if $fields->need('series_name');
 
@@ -145,22 +152,23 @@ sub pre_process_fields {
                 fields => [qw(id name)],
                 filter => {id => array_uniq(map {$_->{'arch_id'}} @$result)}
             )
-        }
+          }
       }
       if $fields->need('arch_name');
 
-    if (grep {$fields->need($_)} qw(package_name package_version)) {
+    if (grep {$fields->need($_)} qw(package_name package_version build_depends)) {
         $fields->{'sources'} = {
             map {delete($_->{'id'}) => $_} @{
                 $self->package_source->get_all(
                     fields => [
                         'id',
-                        ($fields->need('package_name')    ? ('name')    : ()),
-                        ($fields->need('package_version') ? ('version') : ()),
+                        ($fields->need('package_name')    ? ('name')          : ()),
+                        ($fields->need('package_version') ? ('version')       : ()),
+                        ($fields->need('build_depends')   ? ('build_depends') : ()),
                     ],
                     filter => {id => array_uniq(map {$_->{'source_id'}} @$result)}
                 )
-            }
+              }
         };
     }
 }
@@ -210,8 +218,29 @@ sub take_build {
 
     return undef unless $build_id;
 
-    my $build = $self->get($build_id, fields => [qw(source_id series_name arch_name package_name package_version)])
+    my $build =
+      $self->get($build_id,
+        fields => [qw(source_id series_id series_name arch_id arch_name package_name package_version build_depends)])
       // return undef;
+
+    my $deps = deps_parse($build->{'build_depends'});
+
+    my $facts = Dpkg::Deps::KnownFacts->new();
+    $facts->add_installed_package($_->{'name'}, $_->{'version'}, $build->{'arch_name'}, TRUE) foreach @{
+        $self->dist_package->get_all(
+            fields => [qw(name version)],
+            filter => {
+                series_id => $build->{'series_id'},
+                arch_id   => ($build->{'arch_id'} == 1 ? 3 : $build->{'arch_id'})
+            }
+        )
+      };
+
+    $deps->simplify_deps($facts);
+    unless ($deps->is_empty()) {
+        $self->do_action($build_id, 'build_depends_failed', missed_deps => [$deps->get_deps()]);
+        return undef;
+    }
 
     my $source_store_dir =
       $self->get_option('source_store_dir') . "/$build->{'package_name'}_$build->{'package_version'}";
@@ -265,6 +294,13 @@ sub on_action_building_failed {
     my ($self, $obj, %opts) = @_;
 
     $self->db->package_build->edit($obj, {build_log => $opts{'build_log'}});
+}
+
+sub on_action_build_depends_failed {
+    my ($self, $obj, %opts) = @_;
+
+    $self->package_build_wait_depends->add(name => $_, (map {$_ => $obj->{$_}} qw(source_id series_id arch_id)))
+      foreach @{$opts{'missed_deps'}};
 }
 
 sub _multistate_db_table {$_[0]->db->package_build}
