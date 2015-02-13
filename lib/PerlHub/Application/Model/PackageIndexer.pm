@@ -4,7 +4,11 @@ use qbit;
 
 use base qw(QBit::Application::Model);
 
-__PACKAGE__->model_accessors(db => 'PerlHub::Application::Model::DB', gpg => 'PerlHub::Application::Model::GPG');
+__PACKAGE__->model_accessors(
+    db            => 'PerlHub::Application::Model::DB',
+    gpg           => 'PerlHub::Application::Model::GPG',
+    package_build => 'PerlHub::Application::Model::PackageBuild',
+);
 
 use File::Path qw(make_path);
 use File::Copy;
@@ -46,14 +50,16 @@ sub publish_all {
     my $var_path = $self->get_option('packages_dir') . '/var';
     make_path($var_path) unless -d $var_path;
 
-    foreach my $series (map {$_->{'name'}} @{$self->db->package_series->get_all(fields => [qw(name)])}) {
-        open(my $fh, '>', "$var_path/.$series.lock")
+    my %arch2id = map {$_->{'name'} => $_->{'id'}} @{$self->db->package_arch->get_all(fields => [qw(id name)])};
+
+    foreach my $series (@{$self->db->package_series->get_all(fields => [qw(id name)])}) {
+        open(my $fh, '>', "$var_path/.$series->{'name'}.lock")
           || throw gettext('Cannot create lock file: %s', Encode::decode_utf8($!));
         flock($fh, LOCK_EX) || throw gettext('Cannot lock: %s', Encode::decode_utf8($!));
         print $fh $$;
 
-        my $incomming_path = $self->get_option('binaries_incomming_path') . "/$series";
-        my $packages_path  = $self->get_option('packages_path') . "/$series";
+        my $incomming_path = $self->get_option('binaries_incomming_path') . "/$series->{'name'}";
+        my $packages_path  = $self->get_option('packages_path') . "/$series->{'name'}";
 
         my $dh;
         unless (opendir($dh, $incomming_path)) {
@@ -72,28 +78,50 @@ sub publish_all {
             my $changes = Dpkg::Control->new(type => CTRL_FILE_CHANGES);
             $changes->load("$incomming_path/$changes_filename");
 
-            push(@files2delete, "$incomming_path/$changes_filename");
-            foreach (split("\n", $changes->{'Files'})) {
-                chomp();
-                next unless $_;
-                my $fn = [split(' ')]->[4];
-
-                push(@files2delete, "$incomming_path/$fn");
-
-                if ($fn =~ /_([a-z0-9]+)\.deb$/) {
-                    $changed_archs{$1}++;
-                    copy("$incomming_path/$fn", "$packages_path/$1/$fn") || throw gettext(
-                        'Cannot copy file "%s" to "%s": %s', "$incomming_path/$fn",
-                        "$packages_path/$1/$fn",             Encode::decode_utf8($!)
+            $self->db->transaction(
+                sub {
+                    my $packages = $self->package_build->get_all(
+                        fields => [qw(source_id series_id arch_id)],
+                        filter => [
+                            AND => [
+                                [series_id => '=' => $series->{'id'}],
+                                [
+                                    arch_id => 'IN' =>
+                                      [map {$arch2id{$_} // ()} split(/\s+/, $changes->{'Architecture'})]
+                                ],
+                                [multistate => '='     => 'completed'],
+                                [source     => 'MATCH' => [name => '=' => $changes->{'Binary'}]],
+                            ]
+                        ],
+                        for_update => TRUE,
                     );
-                } elsif ($fn =~ /\.(?:tar\.|t)(?:gz|bz|bz2)$/ || $fn =~ /\.dsc$/) {
-                    copy("$incomming_path/$fn", "$packages_path/source/$fn") || throw gettext(
-                        'Cannot copy file "%s" to "%s": %s', "$incomming_path/$fn",
-                        "$packages_path/source/$fn",         Encode::decode_utf8($!)
-                    );
-                    $changed_sources = TRUE;
+
+                    $self->package_build->do_action($_, 'publish') foreach @$packages;
+
+                    push(@files2delete, "$incomming_path/$changes_filename");
+                    foreach (split("\n", $changes->{'Files'})) {
+                        chomp();
+                        next unless $_;
+                        my $fn = [split(' ')]->[4];
+
+                        push(@files2delete, "$incomming_path/$fn");
+
+                        if ($fn =~ /_([a-z0-9]+)\.deb$/) {
+                            $changed_archs{$1}++;
+                            copy("$incomming_path/$fn", "$packages_path/$1/$fn") || throw gettext(
+                                'Cannot copy file "%s" to "%s": %s', "$incomming_path/$fn",
+                                "$packages_path/$1/$fn",             Encode::decode_utf8($!)
+                            );
+                        } elsif ($fn =~ /\.(?:tar\.|t)(?:gz|bz|bz2)$/ || $fn =~ /\.dsc$/) {
+                            copy("$incomming_path/$fn", "$packages_path/source/$fn") || throw gettext(
+                                'Cannot copy file "%s" to "%s": %s', "$incomming_path/$fn",
+                                "$packages_path/source/$fn",         Encode::decode_utf8($!)
+                            );
+                            $changed_sources = TRUE;
+                        }
+                    }
                 }
-            }
+            );
         }
 
         if ($opts{'force_all'}) {
@@ -105,15 +133,14 @@ sub publish_all {
             # Delete old files
             foreach my $f (qw(Packages Release)) {
                 foreach my $e ('', '.gz', '.bz2') {
-                    unlink(
-                        "$packages_path/$arch/$f$e");
+                    unlink("$packages_path/$arch/$f$e");
                 }
             }
 
-`cd $packages_path/.. && /usr/bin/apt-ftparchive packages --db $var_path/${series}_${arch}.db $series/$arch 2>/dev/null > $packages_path/$arch/Packages`;
+`cd $packages_path/.. && /usr/bin/apt-ftparchive packages --db $var_path/$series->{'name'}_${arch}.db $series->{'name'}/$arch 2>/dev/null > $packages_path/$arch/Packages`;
             __compress("$packages_path/$arch/Packages");
 
-`cd $packages_path/.. && /usr/bin/apt-ftparchive release --db $var_path/${series}_${arch}.db -oAPT::FTPArchive::Release::Label=PerlHub -oAPT::FTPArchive::Release::Codename=$series/$arch -oAPT::FTPArchive::Release::Architectures=$arch $series/$arch 2>/dev/null > $packages_path/$arch/Release`;
+`cd $packages_path/.. && /usr/bin/apt-ftparchive release --db $var_path/$series->{'name'}_${arch}.db -oAPT::FTPArchive::Release::Label=PerlHub -oAPT::FTPArchive::Release::Codename=$series->{'name'}/$arch -oAPT::FTPArchive::Release::Architectures=$arch $series->{'name'}/$arch 2>/dev/null > $packages_path/$arch/Release`;
             __compress("$packages_path/$arch/Release");
 
             $self->gpg->sign("$packages_path/$arch/Release");
@@ -123,14 +150,13 @@ sub publish_all {
             # Delete old files
             foreach my $f (qw(Sources Release)) {
                 foreach my $e ('', '.gz', '.bz2') {
-                    unlink(
-                        "$packages_path/source/$f$e");
+                    unlink("$packages_path/source/$f$e");
                 }
             }
-`cd $packages_path/.. && /usr/bin/apt-ftparchive sources --db $var_path/${series}_source.db $series/source 2>/dev/null > $packages_path/source/Sources`;
+`cd $packages_path/.. && /usr/bin/apt-ftparchive sources --db $var_path/$series->{'name'}_source.db $series->{'name'}/source 2>/dev/null > $packages_path/source/Sources`;
             __compress("$packages_path/source/Sources");
 
-`cd $packages_path/.. && /usr/bin/apt-ftparchive release --db $var_path/${series}_source.db -oAPT::FTPArchive::Release::Label=PerlHub -oAPT::FTPArchive::Release::Codename=$series/source -oAPT::FTPArchive::Release::Architectures=source $series/source 2>/dev/null > $packages_path/source/Release`;
+`cd $packages_path/.. && /usr/bin/apt-ftparchive release --db $var_path/$series->{'name'}_source.db -oAPT::FTPArchive::Release::Label=PerlHub -oAPT::FTPArchive::Release::Codename=$series->{'name'}/source -oAPT::FTPArchive::Release::Architectures=source $series->{'name'}/source 2>/dev/null > $packages_path/source/Release`;
             __compress("$packages_path/source/Release");
 
             $self->gpg->sign("$packages_path/source/Release");

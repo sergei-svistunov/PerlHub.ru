@@ -9,7 +9,7 @@ __PACKAGE__->model_accessors(package_source => 'PerlHub::Application::Model::Pac
 sub schedule_build : CRON('* * * * *') : LOCK {
     my ($self) = @_;
 
-    my $dput_dir = '/opt/perlhub/dput_upload';
+    my $dput_dir = $self->get_option(dput_path => '/opt/perlhub/dput_upload');
 
     opendir(my $dh, $dput_dir) || throw "Cannot open dir $dput_dir: $!";
     my @changes_files = grep {/\.changes$/} readdir($dh);

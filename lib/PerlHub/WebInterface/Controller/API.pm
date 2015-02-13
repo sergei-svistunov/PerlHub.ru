@@ -6,6 +6,7 @@ use base qw(QBit::WebInterface::Controller);
 
 __PACKAGE__->model_accessors(
     package_build => 'PerlHub::Application::Model::PackageBuild',
+    dist_package  => 'PerlHub::Application::Model::DistPackage',
     db            => 'PerlHub::Application::Model::DB',             # ToDo: kill it
 );
 
@@ -14,14 +15,15 @@ sub get_builder_settings : CMD {
 
     return $self->as_json(
         {
-            arches       => [map {$_->{'name'}} @{$self->db->package_arch->get_all(fields   => [qw(name)])}],
-            series       => [map {$_->{'name'}} @{$self->db->package_series->get_all(fields => [qw(name)])}],
-            othermirrors => [
-                'deb http://packages.perlhub.ru {{SERIES}}/all/',
-                'deb http://packages.perlhub.ru {{SERIES}}/{{ARCH}}/',
-                #'deb http://ppa.launchpad.net/qbit-perl/{{SERIES}}/ubuntu {{SERIES}} main',
+            arches => [map {$_->{'name'}} @{$self->db->package_arch->get_all(fields => [qw(name)])}],
+            series => [
+                map {$_->{'name'}}
+                  @{$self->db->package_series->get_all(fields => [qw(name)], filter => {outdated => 0})}
             ],
-            components => [qw(main universe multiverse)],
+            othermirrors => [
+                'deb http://packages.perlhub.ru {{SERIES}}/all/', 'deb http://packages.perlhub.ru {{SERIES}}/{{ARCH}}/',
+            ],
+            components => [$self->dist_package->get_components()],
         }
     );
 }

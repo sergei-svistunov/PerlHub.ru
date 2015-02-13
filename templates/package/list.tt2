@@ -53,12 +53,13 @@
               <th>[% a | html %]</th>
               [% FOR s = series.keys.sort %]
               <td>
+                [% log_msts = [2,1,4,1,16,1]; log_msts_hs = log_msts.hash() %]
                 [% mst = arch_series.${a}.${s}.multistate %]
-                [% IF mst && check_rights('view_build_log') %]
+                [% IF log_msts_hs.${mst} && check_rights('view_build_log') %]
                 [% modal_id = package.id _ '_' _ s _ '_' _ a %]
                 <a data-toggle="modal" data-target="#modal_[% modal_id | html %]" href="[% cmd_link('build_log', '', id => package.id, arch_id => archs.${a}, series_id => series.${s}) %]">
                 [% END %]
-                  <span class="badge [% IF mst == 1 +%] badge-info[% ELSIF mst == 2 +%] badge-success[% ELSIF mst == 4 +%] badge-important[% END %]">
+                  <span class="badge [% IF mst == 1 +%] badge-info[% ELSIF mst == 2 || mst == 16 +%] badge-success[% ELSIF mst == 4 || mst == 8 +%] badge-important[% END %]">
                     [% arch_series.${a}.${s}.multistate_name | html %]
                   </span>
                 [% IF mst && check_rights('view_build_log')%]

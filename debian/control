@@ -13,7 +13,7 @@ Depends: ${shlibs:Depends}, ${misc:Depends}, ${perl:Depends}, nginx, nginx-full,
  libqbit-application-model-rbac-db-perl, libqbit-application-model-db-mysql-rbac-perl,
  libqbit-application-model-db-mysql-perl, libqbit-application-model-multistate-db-perl,
  libqbit-application-model-sendmail-perl,
- libqbit-webinterface-fastcgi-perl, libqbit-webinterface-controller-rbac-perl,
+ libqbit-webinterface-fastcgi-perl, libqbit-webinterface-controller-rbac-perl, libqbit-webinterface-controller-multistate-perl,
  libqbit-cron-perl
 Description: perlhub server
  HTTP server
