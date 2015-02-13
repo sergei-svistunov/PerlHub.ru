@@ -225,7 +225,7 @@ sub take_build {
         fields => [qw(source_id series_id series_name arch_id arch_name package_name package_version build_depends)])
       // return undef;
 
-    my $deps = deps_parse($build->{'build_depends'});
+    my $deps = deps_parse($build->{'build_depends'}, host_arch => $build->{'arch_name'});
 
     my $facts = Dpkg::Deps::KnownFacts->new();
     $facts->add_installed_package($_->{'name'}, $_->{'version'}, $build->{'arch_name'}, TRUE) foreach @{
@@ -243,15 +243,15 @@ sub take_build {
             fields => [qw(package_name package_version)],
             filter => {
                 series_id  => $build->{'series_id'},
-                arch_id    => ($build->{'arch_id'} == 1 || $build->{'arch_id'} == 3 ? [1, 3] : $build->{'arch_id'}),
+                arch_id    => [1, $build->{'arch_id'} == 1 ? 3 : $build->{'arch_id'}],
                 multistate => 'published',
             }
-        )
+          )
       };
 
     $deps->simplify_deps($facts);
     unless ($deps->is_empty()) {
-        $self->do_action($build_id, 'build_depends_failed', missed_deps => [$deps->get_deps()]);
+        $self->do_action($build_id, 'build_depends_failed', missed_deps => [map {$_->{'package'}} $deps->get_deps()]);
         return undef;
     }
 
