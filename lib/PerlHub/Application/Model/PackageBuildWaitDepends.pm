@@ -4,7 +4,10 @@ use qbit;
 
 use base qw(QBit::Application::Model::DBManager);
 
-__PACKAGE__->model_accessors(db => 'PerlHub::Application::Model::DB',);
+__PACKAGE__->model_accessors(
+    db            => 'PerlHub::Application::Model::DB::Package',
+    package_build => 'PerlHub::Application::Model::PackageBuild',
+);
 
 __PACKAGE__->model_fields(
     name      => {pk => TRUE, db => TRUE},
@@ -45,6 +48,50 @@ sub add {
     ) if @missed_req_fields;
 
     return $self->db->package_build_wait_depends->add({hash_transform(\%opts, [qw(name source_id series_id arch_id)])});
+}
+
+sub added_new_packages {
+    my ($self, $series, $arch, $packages) = @_;
+
+    $self->db->transaction(
+        sub {
+            my $build_packages = $self->db->package_build_wait_depends->get_all(
+                fields => [qw(source_id series_id arch_id)],
+                filter => {
+                    series_id => $series,
+                    (arch_id => $arch == 1 || $arch == 3 ? [1, 3] : $arch),
+                    name => $packages
+                },
+                distinct   => TRUE,
+                for_update => TRUE,
+            );
+
+            return unless @$build_packages;
+
+            $self->db->package_build_wait_depends->delete(
+                $self->db->filter(
+                    {
+                        series_id => $series,
+                        (arch_id => $arch == 1 || $arch == 3 ? [1, 3] : $arch),
+                        name => $packages
+                    }
+                )
+            );
+
+            foreach my $pkg (@$build_packages) {
+                $self->package_build->do_action($pkg, 'depends_changed')
+                  unless $self->db->package_build_wait_depends->get_all(
+                    fields => ['source_id'],
+                    filter => {
+                        source_id => $pkg->{'source_id'},
+                        series_id => $pkg->{'series_id'},
+                        arch_id   => $pkg->{'arch_id'},
+                    },
+                    limit => 1,
+                  )->[0];
+            }
+        }
+    );
 }
 
 TRUE;

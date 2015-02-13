@@ -8,7 +8,7 @@ use File::Path qw(make_path);
 use Dpkg::Deps;
 
 __PACKAGE__->model_accessors(
-    db                         => 'PerlHub::Application::Model::DB',
+    db                         => 'PerlHub::Application::Model::DB::Package',
     package_source             => 'PerlHub::Application::Model::PackageSource',
     dist_package               => 'PerlHub::Application::Model::DistPackage',
     package_build_wait_depends => 'PerlHub::Application::Model::PackageBuildWaitDepends',
@@ -75,6 +75,8 @@ __PACKAGE__->model_filter(
         series_id  => {type => 'number',     label => d_gettext('Series ID')},
         arch_id    => {type => 'number',     label => d_gettext('Architecture ID')},
         multistate => {type => 'multistate', label => d_gettext('Multistate')},
+        source =>
+          {type => 'subfilter', model_accessor => 'package_source', field => 'source_id', label => d_gettext('Source')}
     }
 );
 
@@ -236,6 +238,17 @@ sub take_build {
         )
       };
 
+    $facts->add_installed_package($_->{'package_name'}, $_->{'package_version'}, $build->{'arch_name'}, TRUE) foreach @{
+        $self->get_all(
+            fields => [qw(package_name package_version)],
+            filter => {
+                series_id  => $build->{'series_id'},
+                arch_id    => ($build->{'arch_id'} == 1 || $build->{'arch_id'} == 3 ? [1, 3] : $build->{'arch_id'}),
+                multistate => 'published',
+            }
+        )
+      };
+
     $deps->simplify_deps($facts);
     unless ($deps->is_empty()) {
         $self->do_action($build_id, 'build_depends_failed', missed_deps => [$deps->get_deps()]);
@@ -301,6 +314,13 @@ sub on_action_build_depends_failed {
 
     $self->package_build_wait_depends->add(name => $_, (map {$_ => $obj->{$_}} qw(source_id series_id arch_id)))
       foreach @{$opts{'missed_deps'}};
+}
+
+sub on_action_publish {
+    my ($self, $obj) = @_;
+
+    $self->package_build_wait_depends->added_new_packages($obj->{'series_id'}, $obj->{'arch_id'},
+        [$self->get($obj, fields => ['package_name'])->{'package_name'}]);
 }
 
 sub _multistate_db_table {$_[0]->db->package_build}

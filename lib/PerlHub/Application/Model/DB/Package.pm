@@ -63,7 +63,7 @@ __PACKAGE__->meta(
                 {name => 'series_id'},
                 {name => 'arch_id'},
             ],
-            primary_key  => [qw(name source_id series_id arch_id)],
+            primary_key  => [qw(name series_id arch_id source_id)],
             foreign_keys => [[[qw(source_id series_id arch_id)] => package_build => [qw(source_id series_id arch_id)]]],
         },
 

@@ -7,7 +7,10 @@ use base qw(QBit::Application::Model::DBManager);
 use LWP::UserAgent;
 use IO::Uncompress::Bunzip2;
 
-__PACKAGE__->model_accessors(db => 'PerlHub::Application::Model::DB::Package');
+__PACKAGE__->model_accessors(
+    db                         => 'PerlHub::Application::Model::DB::Package',
+    package_build_wait_depends => 'PerlHub::Application::Model::PackageBuildWaitDepends',
+);
 
 __PACKAGE__->model_fields(
     series_id => {db => TRUE, pk => TRUE},
@@ -104,7 +107,8 @@ sub update {
                         $self->db->filter({arch_id => $arch->{'id'}, series_id => $series->{'id'}}));
                     $self->db->dist_package->add_multi(\@packages, replace => TRUE);
 
-                    ldump(\@new_packages);
+                    $self->package_build_wait_depends->added_new_packages($series->{'id'}, $arch->{'id'},
+                        [map {$_->{'name'}} @new_packages]);
                 }
             );
         }

@@ -15,11 +15,13 @@ sub get_builder_settings : CMD {
 
     return $self->as_json(
         {
-            arches       => [map {$_->{'name'}} @{$self->db->package_arch->get_all(fields   => [qw(name)])}],
-            series       => [map {$_->{'name'}} @{$self->db->package_series->get_all(fields => [qw(name)])}],
+            arches => [map {$_->{'name'}} @{$self->db->package_arch->get_all(fields => [qw(name)])}],
+            series => [
+                map {$_->{'name'}}
+                  @{$self->db->package_series->get_all(fields => [qw(name)], filter => {outdated => 0})}
+            ],
             othermirrors => [
-                'deb http://packages.perlhub.ru {{SERIES}}/all/',
-                'deb http://packages.perlhub.ru {{SERIES}}/{{ARCH}}/',
+                'deb http://packages.perlhub.ru {{SERIES}}/all/', 'deb http://packages.perlhub.ru {{SERIES}}/{{ARCH}}/',
             ],
             components => [$self->dist_package->get_components()],
         }
