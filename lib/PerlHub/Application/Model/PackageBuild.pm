@@ -6,6 +6,7 @@ use base qw(QBit::Application::Model::DBManager QBit::Application::Model::Multis
 
 use File::Path qw(make_path);
 use Dpkg::Deps;
+use Dpkg::Deps::KnownFacts::PerlHub;
 
 __PACKAGE__->model_accessors(
     db                         => 'PerlHub::Application::Model::DB::Package',
@@ -227,7 +228,7 @@ sub take_build {
 
     my $deps = deps_parse($build->{'build_depends'}, host_arch => $build->{'arch_name'});
 
-    my $facts = Dpkg::Deps::KnownFacts->new();
+    my $facts = Dpkg::Deps::KnownFacts::PerlHub->new();
     $facts->add_installed_package($_->{'name'}, $_->{'version'}, $build->{'arch_name'}, TRUE) foreach @{
         $self->dist_package->get_all(
             fields => [qw(name version)],
