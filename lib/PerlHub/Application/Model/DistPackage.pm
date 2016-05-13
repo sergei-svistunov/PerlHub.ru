@@ -5,7 +5,7 @@ use qbit;
 use base qw(QBit::Application::Model::DBManager);
 
 use LWP::UserAgent;
-use IO::Uncompress::Bunzip2;
+use IO::Uncompress::Gunzip;
 
 __PACKAGE__->model_accessors(
     db                         => 'PerlHub::Application::Model::DB::Package',
@@ -56,7 +56,7 @@ sub update {
             foreach my $component ($self->get_components()) {
                 my $pkg_list;
                 my $url = "http://ru.archive.ubuntu.com/"
-                  . "ubuntu/dists/$series->{'name'}/$component/binary-$arch->{'name'}/Packages.bz2";
+                  . "ubuntu/dists/$series->{'name'}/$component/binary-$arch->{'name'}/Packages.gz";
                 my $response =
                   $self->ua->mirror($url, $self->_get_pkg_filename($series->{'name'}, $arch->{'name'}, $component));
 
@@ -73,10 +73,10 @@ sub update {
 
             my @packages;
             foreach my $component (keys(%component_statuses)) {
-                my $bz = IO::Uncompress::Bunzip2->new(
+                my $gz = IO::Uncompress::Gunzip->new(
                     $self->_get_pkg_filename($series->{'name'}, $arch->{'name'}, $component));
                 local $/ = "\n\n";
-                while (<$bz>) {
+                while (<$gz>) {
                     chomp();
                     my %pkg = map {split(/\s*:\s*/, $_, 2)} grep {/:/} split("\n");
                     push(
