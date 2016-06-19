@@ -4,6 +4,8 @@ use qbit;
 
 use base qw(QBit::Application::Model::DBManager);
 
+use File::Path qw(make_path);
+
 __PACKAGE__->register_rights(
     [
         {
@@ -17,7 +19,10 @@ __PACKAGE__->register_rights(
     ]
 );
 
-__PACKAGE__->model_accessors(db => 'PerlHub::Application::Model::DB');
+__PACKAGE__->model_accessors(
+    db              => 'PerlHub::Application::Model::DB',
+    package_indexer => 'PerlHub::Application::Model::PackageIndexer'
+);
 
 __PACKAGE__->model_fields(
     id          => {db => TRUE, pk      => TRUE, default => TRUE,},
@@ -65,7 +70,23 @@ sub add {
 
     my $id;
     try {
-        $id = $self->db->package_series->add({map {$_ => $opts{$_}} @fields});
+        $self->db->transaction(
+            sub {
+                $id = $self->db->package_series->add({map {$_ => $opts{$_}} @fields});
+
+                my $var_path = $self->get_option('packages_dir') . '/var';
+                make_path($var_path) unless -d $var_path;
+
+                my $packages_path = $self->get_option('packages_path') . "/$opts{'name'}";
+                make_path($packages_path) unless -d $packages_path;
+
+                my @archs =
+                  map {$_->{'name'}} @{$self->db->package_arch->get_all(fields => [qw(name)])};
+                push(@archs, 'source');
+
+                $self->package_indexer->changed_archs($packages_path, $var_path, $opts{'name'}, @archs);
+            }
+        );
     }
     catch Exception::DB::DuplicateEntry with {
         throw Exception::BadArguments gettext('"%s" is already exists', $opts{'name'});

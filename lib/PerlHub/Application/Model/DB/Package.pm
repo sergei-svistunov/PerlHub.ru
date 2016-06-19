@@ -23,6 +23,7 @@ __PACKAGE__->meta(
                 {name => 'outdated',    type => 'BOOLEAN', not_null => TRUE, default  => 0},
             ],
             primary_key => ['id'],
+            indexes     => [{fields => [qw(name)], unique => TRUE}],
         },
 
         package_source => {
