@@ -1,0 +1,25 @@
+[% WRAPPER page %]
+
+[% IF package_series.size %]
+<table class="table table-hover">
+  <thead>
+    <tr>
+      <th>[% gettext('ID') %]</th>
+      <th>[% gettext('Name') %]</th>
+      <th>[% gettext('Description') %]</th>
+    </tr>
+  </thead>
+  <tbody>
+    [% FOR row = package_series %]
+    <tr>
+      <td>[% row.id | html %]</td>
+      <td>[% row.name | html %]</td>
+      <td>[% row.description | html %]</td>
+    </tr>
+    [% END %]
+  </tbody>
+</table>
+[% ELSE %]
+<div class="alert alert-error">[% gettext('Nothing found') %]</div>
+[% END %]
+[% END %]

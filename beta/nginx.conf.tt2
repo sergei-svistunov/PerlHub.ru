@@ -31,7 +31,7 @@ http {
 
         access_log      [% dir %]/nginx/access.log;
 
-        server_name dev-partner.yandex.ru;
+        server_name localhost;
 
         location = /favicon.ico {
             access_log off;
@@ -90,6 +90,19 @@ http {
             fastcgi_param SCHEME          $scheme;
             fastcgi_param SERVER_NAME     $server_name;
             fastcgi_param SERVER_PORT     $server_port;
+        }
+    }
+    
+    server {
+        listen        [% port %];
+        listen        [::]:[% port %];
+    
+        server_name packages.localhost;
+    
+        root        [% dir %]/nginx/perlhub/packages;
+    
+        location =/ {
+            return 'http://localhost:[% port %]';
         }
     }
 }

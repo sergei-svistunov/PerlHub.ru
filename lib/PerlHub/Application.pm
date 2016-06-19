@@ -17,6 +17,7 @@ use PerlHub::Application::Model::PackageBuild accessor            => 'package_bu
 use PerlHub::Application::Model::PackageBuildWaitDepends accessor => 'package_build_wait_depends';
 use PerlHub::Application::Model::PackageIndexer accessor          => 'package_indexer';
 use PerlHub::Application::Model::DistPackage accessor             => 'dist_package';
+use PerlHub::Application::Model::PackageSeries accessor           => 'package_series';
 
 try {
     __PACKAGE__->use_config('PerlHub/Application.cfg');

@@ -247,7 +247,7 @@ sub take_build {
                 arch_id    => [1, $build->{'arch_id'} == 1 ? 3 : $build->{'arch_id'}],
                 multistate => 'published',
             }
-          )
+        )
       };
 
     $deps->simplify_deps($facts);
