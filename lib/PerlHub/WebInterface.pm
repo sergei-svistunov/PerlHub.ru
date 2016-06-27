@@ -4,12 +4,13 @@ use qbit;
 
 use base qw(PerlHub::Application QBit::WebInterface::FastCGI);
 
-use PerlHub::WebInterface::Controller::Main path    => 'main';
-use PerlHub::WebInterface::Controller::User path    => 'user';
-use PerlHub::WebInterface::Controller::Package path => 'package';
-use PerlHub::WebInterface::Controller::API path     => 'api';
-use QBit::WebInterface::Controller::RBAC path       => 'rbac';
-use QBit::WebInterface::Controller::Multistate path => 'multistate';
+use PerlHub::WebInterface::Controller::Main path          => 'main';
+use PerlHub::WebInterface::Controller::User path          => 'user';
+use PerlHub::WebInterface::Controller::Package path       => 'package';
+use PerlHub::WebInterface::Controller::API path           => 'api';
+use PerlHub::WebInterface::Controller::PackageSeries path => 'package_series';
+use QBit::WebInterface::Controller::RBAC path             => 'rbac';
+use QBit::WebInterface::Controller::Multistate path       => 'multistate';
 
 __PACKAGE__->use_config('PerlHub/WebInterface.cfg');
 
@@ -32,6 +33,12 @@ sub pre_cmd {
     my @menu;
 
     push(@menu, {label => gettext('Packages'), path => 'package'});
+
+    my @series_submenu;
+    push(@series_submenu, {label => gettext('Series'),  cmd => 'list'}) if $self->check_rights('package_series_view');
+    push(@series_submenu, {label => gettext('Add new'), cmd => 'add'})  if $self->check_rights('package_series_add');
+    push(@menu, {label => gettext('Series'), path => 'package_series', submenu => \@series_submenu})
+      if @series_submenu;
 
     my @rbac_submenu;
     push(@rbac_submenu, {label => gettext('Roles'), cmd => 'roles'}) if $self->check_rights('rbac_roles_view');

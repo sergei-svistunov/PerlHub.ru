@@ -129,42 +129,44 @@ sub publish_all {
             $changed_sources = TRUE;
         }
 
-        foreach my $arch (keys(%changed_archs)) {
-            # Delete old files
-            foreach my $f (qw(Packages Release)) {
-                foreach my $e ('', '.gz', '.bz2') {
-                    unlink("$packages_path/$arch/$f$e");
-                }
-            }
+        my @archs = keys(%changed_archs);
+        push(@archs, 'source') if $changed_sources;
 
-`cd $packages_path/.. && /usr/bin/apt-ftparchive packages --db $var_path/$series->{'name'}_${arch}.db $series->{'name'}/$arch 2>/dev/null > $packages_path/$arch/Packages`;
-            __compress("$packages_path/$arch/Packages");
+        $self->changed_archs($packages_path, $var_path, $series->{'name'}, @archs);
 
-`cd $packages_path/.. && /usr/bin/apt-ftparchive release --db $var_path/$series->{'name'}_${arch}.db -oAPT::FTPArchive::Release::Label=PerlHub -oAPT::FTPArchive::Release::Codename=$series->{'name'}/$arch -oAPT::FTPArchive::Release::Architectures=$arch $series->{'name'}/$arch 2>/dev/null > $packages_path/$arch/Release`;
-            __compress("$packages_path/$arch/Release");
-
-            $self->gpg->sign("$packages_path/$arch/Release");
-        }
-
-        if ($changed_sources) {
-            # Delete old files
-            foreach my $f (qw(Sources Release)) {
-                foreach my $e ('', '.gz', '.bz2') {
-                    unlink("$packages_path/source/$f$e");
-                }
-            }
-`cd $packages_path/.. && /usr/bin/apt-ftparchive sources --db $var_path/$series->{'name'}_source.db $series->{'name'}/source 2>/dev/null > $packages_path/source/Sources`;
-            __compress("$packages_path/source/Sources");
-
-`cd $packages_path/.. && /usr/bin/apt-ftparchive release --db $var_path/$series->{'name'}_source.db -oAPT::FTPArchive::Release::Label=PerlHub -oAPT::FTPArchive::Release::Codename=$series->{'name'}/source -oAPT::FTPArchive::Release::Architectures=source $series->{'name'}/source 2>/dev/null > $packages_path/source/Release`;
-            __compress("$packages_path/source/Release");
-
-            $self->gpg->sign("$packages_path/source/Release");
-        }
         unlink($_) foreach @files2delete;
 
         flock($fh, LOCK_UN) || throw gettext('Cannot unlock: %s', Encode::decode_utf8($!));
         close($fh);
+    }
+}
+
+sub changed_archs {
+    my ($self, $packages_path, $var_path, $series_name, @archs) = @_;
+
+    my ($file, $lc_file);
+
+    foreach my $arch (@archs) {
+        my @files = (($arch eq 'source' ? 'Sources' : 'Packages'), 'Release');
+
+        # Delete old files
+        foreach my $f (@files) {
+            foreach my $e ('', '.gz', '.bz2') {
+                unlink("$packages_path/$arch/$f$e");
+            }
+        }
+
+        $file    = shift(@files);
+        $lc_file = lc($file);
+`cd $packages_path/.. && /usr/bin/apt-ftparchive $lc_file --db $var_path/${series_name}_${arch}.db $series_name/$arch 2>/dev/null > $packages_path/$arch/$file`;
+        __compress("$packages_path/$arch/$file");
+
+        $file    = shift(@files);
+        $lc_file = lc($file);
+`cd $packages_path/.. && /usr/bin/apt-ftparchive $lc_file --db $var_path/${series_name}_${arch}.db -oAPT::FTPArchive::Release::Label=PerlHub -oAPT::FTPArchive::Release::Codename=$series_name/$arch -oAPT::FTPArchive::Release::Architectures=$arch $series_name/$arch 2>/dev/null > $packages_path/$arch/$file`;
+        __compress("$packages_path/$arch/$file");
+
+        $self->gpg->sign("$packages_path/$arch/$file");
     }
 }
 

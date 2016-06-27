@@ -29,12 +29,6 @@ __PACKAGE__->model_filter(
     }
 );
 
-sub init {
-    my ($self) = @_;
-
-    $self->{'ua'} = LWP::UserAgent->new();
-}
-
 sub query {
     my ($self, %opts) = @_;
 
